@@ -33,3 +33,62 @@ rs.initiate({
     ],
     configsvr: true // Esta propiedad determina que el cluster se use como config server de un shard cluster
 })
+
+## Deploy de los shards (Creamos 2 shard)
+
+1.- Directorios del primer shard A (replica set)
+
+mkdir shardAServer1
+mkdir shardAServer2
+mkdir shardAServer3
+
+2.- Levantamos los servidores del primer shard A
+
+mongod --replSet shardAServerGetafe --dbpath shardAServer1 --port 27101 --shardsvr
+mongod --replSet shardAServerGetafe --dbpath shardAServer2 --port 27102 --shardsvr
+mongod --replSet shardAServerGetafe --dbpath shardAServer3 --port 27103 --shardsvr
+
+
+3.- Inicializamos el replica set
+
+mongo --port 27101
+
+rs.initiate({
+    _id: "shardAServerGetafe",
+    members: [
+        {_id: 0, host: "localhost:27101"},
+        {_id: 1, host: "localhost:27102"},
+        {_id: 2, host: "localhost:27103"},
+    ]
+})
+
+4.- Directorios del segundo shard B (replica set)
+
+mkdir shardBServer1
+mkdir shardBServer2
+mkdir shardBServer3
+
+5.- Levantar los servidores del segundo shard
+
+mongod --replSet shardBServerGetafe --dbpath shardBServer1 --port 27201 --shardsvr
+mongod --replSet shardBServerGetafe --dbpath shardBServer2 --port 27202 --shardsvr
+mongod --replSet shardBServerGetafe --dbpath shardBServer3 --port 27203 --shardsvr
+
+6.- Inicializar el replica set del segundo shard 
+
+mongo --port 27201
+
+rs.initiate({
+    _id: "shardBServerGetafe",
+    members: [
+        {_id: 0, host: "localhost:27201"},
+        {_id: 1, host: "localhost:27202"},
+        {_id: 2, host: "localhost:27203"},
+    ]
+})
+
+## Mongos (router)
+
+1.- Levantar mongos con comando
+
+mongos --configdb configServerGetafe/localhost:27001,localhost:27002,localhost:27003 --port 27000
