@@ -272,3 +272,9 @@ Desde una shell conectada a mongos:
 mongo --port 27000
 
 sh.addShard("shardCServerGetafe/localhost:27301,localhost:27302,localhost:27303");
+
+Comprobar como se produce la migración
+
+sh.isBalacerRunning()  // Comprobar como migrará los chunks
+
+sh.status() // Ver la nueva distribución de los chunks
