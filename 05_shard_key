@@ -1,0 +1,100 @@
+# Shard key en sharding cluster
+
+## Sintaxis
+
+Desde mongos
+
+sh.shardCollection(<base-datos.coleccion>, {clave1: 1 | -1, clave2: 1 | -1, ...})
+
+La shard key es una clave indexada, a nivel de colección, usada por MongoDB en los sharding cluster
+para distribuir los documentos entre sus diferentes shard.
+
+- Si la colección ya existiera, previamente a usar el método shardCollection habrá que construir
+un índice identico a la shard key que vayamos a utilizar.
+
+- Si la colección no existe no es necesario crear el índice, el método lo creará implícitamente.
+
+## Funcionalidad
+
+- Permite la definición de los campos con los que se generarán los rangos (dinámicos) de los
+chunks que determinan la distribución de los docs.
+
+- Como la información de los rangos es almacenada en el config server, mongos puede realizar las
+llamadas consultas "targeted", es decir que para localizar uno o varios documentos puede acceder
+al shard donde se encuentran sin tener que buscarlos en todos los shard (consulta broadcast), siendo
+más eficiente.
+
+## Factores a tener en cuenta según la versión de MongoDB
+
+- Hasta MongoDB 4.4 no se podía modificar la shard key.
+
+- MongoDB 4.4 ya permite modificarla pero solamente si la nueva shard key es prefijo de la anterior.
+
+- Desde MongoDB 5.0 se puede modificar la shard key.
+
+## Criterios de selección de las shard key
+
+1.- Respecto a la distribución en los shard
+
+- Alta cardinalidad (número de valores iguales en los campos de los documentos)
+
+Los campos elegidos en la shard key deberían tener el mayor número de valores distintos porque
+de esa manera permitiremos crear muchos rangos para los chunk.
+
+    - Ejemplo de baja cardinalidad a evitar, por ejemplo en una colección de datos personales el género
+    tendrá muy pocos valores, hombre, mujer, no desea declararlo.
+
+- Baja frecuencia (número de veces que se repite un valor).
+
+Si tenemos baja frecuencia, los documentos se repartirán eficientemente y evitaremos
+la concentración en un solo shard.
+
+    - Ejemplo de alta frecuencia a evitar, por ejemplo en una colección de datos personales el pais de
+    nacimiento en el caso de que la mayoría fueran del mismo o de muy pocos:
+        pais: - 300 paises
+              - solo tuvieran varios valores frecuentemente (España, Portugal)
+
+- Evitar cambios monotónicos (cuando en el campo hay un incremento o decremento sucesivo
+  y constante en sus valores)
+
+Las operaciones de escritura siempre se van a ir a un chunk extremo lo que va a provocar una
+mala distribución y por tanto migraciones constantes.
+
+    - Ejemplo de cambios monotónicos en los valores. Campos de fecha o númericos incrementales.
+
+2.- Respecto a facilitar operaciones targeted (más eficientes)
+
+La shard key sea usada por la mayoría de consultas de nuestra aplicación.
+
+- Compuestas por varios campos.
+
+- La forma de la shard key debe cumplir la forma de las consultas (mismo criterio que en índices).
+
+## Consideraciones específicas de las shard key
+
+- Los campos de la shard key serán obligatorios en los documentos
+de esa colección (desde MongoDB 4.4 se puede incumplir pero no es recomendable).
+
+- En el caso de que la shard key necesariamente este sobre campos con cambios monotónicos
+se pueden utilizar índices hash (se pasa como opción al momento de crear el particionado) a costa
+de perder las operaciones targeted de consultas con rangos sobre ese campo o campos hash.
+
+- Respecto a los índices únicos y shard key. En las colecciones shard solo los siguientes
+índices que se construyan podrán ser únicos:
+    - El propio índice de la shard key.
+    - Los índices que sean prefijo de la shard key.
+    - El índice único por defecto sobre _id (este o no el campo _id en la shard key)
+
+Ejemplo de pregunta sobre índices únicos y shard key
+
+shard key es {dni: 1, apellidos: 1, nombre: 1}
+
+¿cuales de los siguientes podrían ser índices únicos de esa colección sharding? Varias respuestas disponibles
+
+a) {_id: 1} // Si, siempre porque es el índice único por defecto.
+b) {dni: 1} // Si, porque ese índice sería prefijo de la shard key
+c) {licenciaFederativa: 1} // No porque no es prefijo de la shard key
+
+- Si la colección sharding no contiene en su shard key el campo _id solo se asegura la unicidad del
+campo a nivel de shard. Esto se evitará al 99,9999999999% si usamos objectId() en el campo _id.
+

@@ -11,7 +11,7 @@ colecciones de esa base de datos que no se hayan particionado.
 
 ¿Como selecciona o determina MongoDB el shard primary de cada base de datos?
 
-Cuando se crea la base de datos selecciona el shard ¿que contenga menos datos?
+Cuando se crea la base de datos selecciona el shard que contenga menos datos.
 
 ¿Como sabemos de una base de datos cual es es su shard primary?
 
